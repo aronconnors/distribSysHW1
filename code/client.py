@@ -34,13 +34,12 @@ def service_connection(key, mask):
             sock.close()
         elif recv_data:
             print(recv_data.decode('utf-8'))
-            data.message = input("Enter a command: ")
+            data.message = input("\nEnter a command: ")
      if mask & selectors.EVENT_WRITE:
         if not data.outb and data.message:
             data.outb = data.message.encode('utf-8')
             data.message = None
         if data.outb:
-            print(f"Sending {data.outb.decode('utf-8')} to server")
             sent = sock.send(data.outb)
             data.outb = data.outb[sent:]
 

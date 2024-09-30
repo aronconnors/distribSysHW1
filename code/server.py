@@ -20,7 +20,7 @@ def accept_wrapper(sock):
             newId += 1
         else:
             data = types.SimpleNamespace(addr=addr, id=newId, inb=b"", outb=b"")
-            activeConnections[newId] = addr
+            activeConnections[newId] = conn
             events = selectors.EVENT_READ | selectors.EVENT_WRITE
             sel.register(conn, events, data=data)
             break
@@ -32,13 +32,23 @@ def service_connection(key, mask):
         recv_data = sock.recv(1024)
         if recv_data:
             if recv_data.decode('utf-8') == 'start':
-                data.outb += str(key.data.id).encode('utf-8')
-            if recv_data.decode('utf-8') == 'list':
+                data.outb += 'Your unique ID: '.encode('utf-8') + str(key.data.id).encode('utf-8')
+            elif recv_data.decode('utf-8') == 'list':
                     users = ''
                     for key1, fileObj in sel.get_map().items():
                         if fileObj.data:
                             users = users + str(fileObj.data.id) + ', '
-                    data.outb += users[:-2].encode('utf-8')
+                    data.outb += 'Active user IDs: \n'.encode('utf-8') + users[:-2].encode('utf-8')
+            elif recv_data.decode('utf-8')[:7] == 'forward':
+                parts = recv_data.decode('utf-8').split()
+                destId = parts[1]
+                forwardMessage = " ".join(parts[2:])
+                if int(destId) in activeConnections.keys():
+                    sent = activeConnections[int(destId)].send(forwardMessage.encode('utf-8'))
+                    data.outb += f'Message sent to {destId}'.encode('utf-8')
+                else:
+                    print(activeConnections.keys())
+                    data.outb += f'{destId} is not an active user'.encode('utf-8')
             if recv_data.decode('utf-8') == 'exit':
                 data.outb += 'Goodbye'.encode('utf-8')
         else:
