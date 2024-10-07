@@ -9,6 +9,18 @@ import json
 
 sel = selectors.DefaultSelector()
 activeConnections = {}
+chat_history = {}
+
+def store_message(id1,id2, message):
+    key = tuple(sorted((id1,id2)))
+    if key not in chat_history:
+        chat_history[key] = []
+    chat_history[key].append(f"{id1}: {message}")
+
+def get_history(id1,id2):
+    key = tuple(sorted((id1,id2)))
+    history = chat_history.get(key,[])
+    return "\n".join(history) if history else "No chat history between the two client ids."
 
 def accept_wrapper(sock):
     conn, addr = sock.accept()
@@ -31,6 +43,7 @@ def service_connection(key, mask):
     if mask & selectors.EVENT_READ:
         recv_data = sock.recv(1024)
         if recv_data:
+            print(recv_data)
             if recv_data.decode('utf-8') == 'start':
                 data.outb += 'Your unique ID: '.encode('utf-8') + str(key.data.id).encode('utf-8')
             elif recv_data.decode('utf-8') == 'list':
@@ -41,14 +54,20 @@ def service_connection(key, mask):
                     data.outb += 'Active user IDs: \n'.encode('utf-8') + users[:-2].encode('utf-8')
             elif recv_data.decode('utf-8')[:7] == 'forward':
                 parts = recv_data.decode('utf-8').split()
+                print(parts)
                 destId = parts[1]
                 forwardMessage = " ".join(parts[2:])
                 if int(destId) in activeConnections.keys():
                     sent = activeConnections[int(destId)].send(forwardMessage.encode('utf-8'))
                     data.outb += f'Message sent to {destId}'.encode('utf-8')
+                    store_message(int(data.id),int(destId), forwardMessage)
                 else:
                     print(activeConnections.keys())
                     data.outb += f'{destId} is not an active user'.encode('utf-8')
+            elif recv_data.decode('utf-8')[:7] == 'history':
+                parts = recv_data.decode('utf-8').split()
+                destId = parts[1]
+                print(get_history(int(data.id),int(destId)))
             if recv_data.decode('utf-8') == 'exit':
                 data.outb += 'Goodbye'.encode('utf-8')
         else:
